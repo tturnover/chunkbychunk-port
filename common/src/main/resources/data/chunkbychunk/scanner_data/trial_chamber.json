@@ -1,0 +1,10 @@
+{
+  "inputItems": [
+    "trial_key",
+    "ominous_trial_key"
+  ],
+  "targetBlocks": [
+    "trial_spawner",
+    "vault"
+  ]
+}

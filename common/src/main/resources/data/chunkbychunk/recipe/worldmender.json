@@ -1,0 +1,15 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "sHs",
+    " c "
+  ],
+  "key": {
+    "s": "minecraft:dispenser",
+    "H": "minecraft:heavy_core",
+    "c": "chunkbychunk:worldcore"
+  },
+  "result": {
+    "id": "chunkbychunk:worldmender"
+  }
+}

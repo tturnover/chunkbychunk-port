@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "dCd",
+    "CXC",
+    "dCd"
+  ],
+  "key": {
+    "d": "minecraft:dirt",
+    "C": "minecraft:copper_ingot",
+    "X": "chunkbychunk:worldcore"
+  },
+  "result": {
+    "id": "chunkbychunk:plainschunkspawner"
+  }
+}

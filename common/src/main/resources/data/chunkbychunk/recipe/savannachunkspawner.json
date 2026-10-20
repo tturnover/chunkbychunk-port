@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "wCw",
+    "CXC",
+    "dCd"
+  ],
+  "key": {
+    "w": "minecraft:wheat_seeds",
+    "d": "minecraft:dirt",
+    "C": "minecraft:copper_ingot",
+    "X": "chunkbychunk:worldcore"
+  },
+  "result": {
+    "id": "chunkbychunk:savannachunkspawner"
+  }
+}

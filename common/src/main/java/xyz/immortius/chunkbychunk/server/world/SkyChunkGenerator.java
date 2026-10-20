@@ -1,0 +1,327 @@
+package xyz.immortius.chunkbychunk.server.world;
+
+import com.google.common.collect.ImmutableMap;
+import com.mojang.datafixers.util.Pair;
+import com.mojang.serialization.Codec;
+import com.mojang.serialization.MapCodec;
+import com.mojang.serialization.Lifecycle;
+import com.mojang.serialization.codecs.RecordCodecBuilder;
+import net.minecraft.core.*;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.WorldGenRegion;
+import net.minecraft.util.random.WeightedList;
+import net.minecraft.world.level.levelgen.densityfunction.SamplerContext;
+import net.minecraft.world.entity.MobCategory;
+import net.minecraft.world.level.*;
+import net.minecraft.world.level.biome.*;
+import net.minecraft.world.level.block.AirBlock;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.chunk.ChunkAccess;
+import net.minecraft.world.level.chunk.ChunkGenerator;
+import net.minecraft.world.level.chunk.ChunkGeneratorStructureState;
+import net.minecraft.world.level.levelgen.*;
+import net.minecraft.world.level.levelgen.blending.Blender;
+import net.minecraft.world.level.levelgen.structure.Structure;
+import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplateManager;
+
+import javax.annotation.Nullable;
+import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
+
+/**
+ * The Sky Chunk Generator - Sky Chunk Generators wrap a parent generator but disable actual generation. The
+ * parent generator is retained for biome information and similar. Each sky chunk generator also has a reference
+ * to the dimension that generates chunks for this dimension
+ */
+public class SkyChunkGenerator extends NoiseBasedChunkGenerator {
+
+    public static final MapCodec<SkyChunkGenerator> CODEC = RecordCodecBuilder.mapCodec((encoded) ->
+            encoded.group(
+                    ChunkGenerator.CODEC.withLifecycle(Lifecycle.stable()).fieldOf("parent").forGetter(SkyChunkGenerator::getParent),
+                    Codec.BOOL.optionalFieldOf("sealed", false).forGetter(SkyChunkGenerator::isSealedWorld)
+            ).apply(encoded, encoded.stable(SkyChunkGenerator::new))
+    );
+    public static final MapCodec<SkyChunkGenerator> OLD_NETHER_CODEC = RecordCodecBuilder.mapCodec((encoded) ->
+            encoded.group(ChunkGenerator.CODEC.withLifecycle(Lifecycle.stable()).fieldOf("parent").forGetter(SkyChunkGenerator::getParent))
+                    .apply(encoded, encoded.stable(SkyChunkGenerator::new))
+    );
+
+    private final ChunkGenerator parent;
+    private ResourceKey<Level> generationLevel;
+    private List<ResourceKey<Level>> synchedLevels = new ArrayList<>();
+    private int initialChunks;
+    private boolean chunkSpawnerAllowed;
+    private boolean randomChunkSpawnerAllowed;
+
+    private final boolean sealedWorld;
+    private EmptyGenerationType generationType = EmptyGenerationType.Normal;
+    private Block sealBlock;
+    @Nullable
+    private Block sealCoverBlock;
+    @Nullable
+    private Holder<Biome> unspawnedBiome;
+
+
+    public enum EmptyGenerationType {
+        Normal,
+        Sealed,
+        Nether;
+
+        private static final Map<String, EmptyGenerationType> STRING_LOOKUP;
+
+        static {
+            ImmutableMap.Builder<String, EmptyGenerationType> builder = new ImmutableMap.Builder<>();
+            for (EmptyGenerationType value : EmptyGenerationType.values()) {
+                builder.put(value.name().toLowerCase(Locale.ROOT), value);
+            }
+            STRING_LOOKUP = builder.build();
+        }
+
+        public static EmptyGenerationType getFromString(String asString) {
+            return STRING_LOOKUP.getOrDefault(asString.toLowerCase(Locale.ROOT), Normal);
+        }
+    }
+
+    /**
+     * @param parent The chunkGenerator this generator is based on
+     */
+    public SkyChunkGenerator(ChunkGenerator parent) {
+        this(parent, false);
+    }
+
+    /**
+     * @param parent The chunkGenerator this generator is based on
+     * @param sealedWorld Whether this is the overworld of a sealed world (from the "Chunk By Chunk Sealed" world type)
+     */
+    public SkyChunkGenerator(ChunkGenerator parent, boolean sealedWorld) {
+        super(parent.getBiomeSource(), ChunkGeneratorAccess.getNoiseGeneratorSettings(parent));
+        this.parent = parent;
+        this.sealedWorld = sealedWorld;
+    }
+
+    /**
+     * @return Whether this is the overworld of a sealed world, where empty chunks are bedrock
+     */
+    public boolean isSealedWorld() {
+        return sealedWorld;
+    }
+
+    public void configure(ResourceKey<Level> generationLevel, EmptyGenerationType generationType, Block sealBlock, Block sealCoverBlock, int initialChunks, boolean chunkSpawnerAllowed, boolean randomChunkSpawnerAllowed) {
+        this.generationLevel = generationLevel;
+        this.generationType = generationType;
+        this.initialChunks = initialChunks;
+        this.chunkSpawnerAllowed = chunkSpawnerAllowed;
+        this.randomChunkSpawnerAllowed = randomChunkSpawnerAllowed;
+        this.sealBlock = sealBlock;
+        this.sealCoverBlock = sealCoverBlock;
+    }
+
+    private final Map<String, ResourceKey<Level>> biomeDimensions = new HashMap<>();
+
+    public boolean isChunkSpawnerAllowed() {
+        return chunkSpawnerAllowed;
+    }
+
+    public boolean isRandomChunkSpawnerAllowed() {
+        return randomChunkSpawnerAllowed;
+    }
+
+    public void addSynchLevel(ResourceKey<Level> dimension) {
+        synchedLevels.add(dimension);
+    }
+
+    public List<ResourceKey<Level>> getSynchedLevels() {
+        return synchedLevels;
+    }
+
+    public EmptyGenerationType getGenerationType() {
+        return generationType;
+    }
+
+    public Block getSealBlock() {
+        return sealBlock;
+    }
+
+    @Nullable
+    public Holder<Biome> getUnspawnedBiome() {
+        return unspawnedBiome;
+    }
+
+    public void setUnspawnedBiome(Holder<Biome> unspawnedBiome) {
+        this.unspawnedBiome = unspawnedBiome;
+    }
+
+    public void addBiomeDimension(String name, ResourceKey<Level> level) {
+        biomeDimensions.put(name, level);
+    }
+
+    @Nullable
+    public ResourceKey<Level> getBiomeDimension(String name) {
+        return biomeDimensions.get(name);
+    }
+
+    public int getInitialChunks() {
+        return initialChunks;
+    }
+
+    public ChunkGenerator getParent() {
+        return parent;
+    }
+
+    public ResourceKey<Level> getGenerationLevel() {
+        return generationLevel;
+    }
+
+    @Override
+    protected MapCodec<? extends ChunkGenerator> codec() {
+        return CODEC;
+    }
+
+    @Override
+    public CompletableFuture<ChunkAccess> buildTerrain(ChunkAccess chunk, Blender blender, RandomState randomState, StructureManager structureManager, BiomeManager biomeManager, @Nullable WorldGenRegion carverBiomeRegion, Set<Holder<Biome>> possibleBiomes) {
+        return switch (generationType) {
+            case Sealed -> parent.buildTerrain(chunk, blender, randomState, structureManager, biomeManager, null, possibleBiomes).thenApply(chunkAccess -> {
+                BlockPos.MutableBlockPos blockPos = new BlockPos.MutableBlockPos(0, 0, 0);
+                for (blockPos.setZ(0); blockPos.getZ() < 16; blockPos.setZ(blockPos.getZ() + 1)) {
+                    for (blockPos.setX(0); blockPos.getX() < 16; blockPos.setX(blockPos.getX() + 1)) {
+                        blockPos.setY(chunkAccess.getMaxY());
+                        while (blockPos.getY() > chunkAccess.getMinY() && chunkAccess.getBlockState(blockPos).getBlock() instanceof AirBlock) {
+                            blockPos.setY(blockPos.getY() - 1);
+                        }
+                        if (sealCoverBlock != null) {
+                            blockPos.setY(blockPos.getY() + 1);
+                            chunkAccess.setBlockState(blockPos, sealCoverBlock.defaultBlockState());
+                            blockPos.setY(blockPos.getY() - 1);
+                        }
+                        while (blockPos.getY() > chunkAccess.getMinY() + 1) {
+                            chunkAccess.setBlockState(blockPos, sealBlock.defaultBlockState());
+                            blockPos.setY(blockPos.getY() - 1);
+                        }
+                        chunkAccess.setBlockState(blockPos, Blocks.BEDROCK.defaultBlockState());
+                        blockPos.setY(blockPos.getY() - 1);
+                        chunkAccess.setBlockState(blockPos, Blocks.VOID_AIR.defaultBlockState());
+                    }
+                }
+                return chunkAccess;
+            });
+            case Nether -> CompletableFuture.supplyAsync(() -> {
+                BlockPos.MutableBlockPos blockPos = new BlockPos.MutableBlockPos(0, 0, 0);
+                for (blockPos.setZ(0); blockPos.getZ() < 16; blockPos.setZ(blockPos.getZ() + 1)) {
+                    for (blockPos.setX(0); blockPos.getX() < 16; blockPos.setX(blockPos.getX() + 1)) {
+                        blockPos.setY(chunk.getMinY());
+                        chunk.setBlockState(blockPos, Blocks.LAVA.defaultBlockState());
+                        blockPos.setY(chunk.getMinY() + 1);
+                        chunk.setBlockState(blockPos, Blocks.LAVA.defaultBlockState());
+                        blockPos.setY(127);
+                        chunk.setBlockState(blockPos, Blocks.BEDROCK.defaultBlockState());
+                    }
+                }
+                return chunk;
+            });
+            default -> CompletableFuture.completedFuture(chunk);
+        };
+    }
+
+    @Override
+    public CompletableFuture<ChunkAccess> createBiomes(RandomState randomState, Blender blender, StructureManager structureManager, ChunkAccess chunk) {
+        if (unspawnedBiome == null) {
+            return parent.createBiomes(randomState, blender, structureManager, chunk);
+        } else {
+            return CompletableFuture.supplyAsync(() -> {
+                chunk.fillBiomesFromNoise((x, y, z) -> unspawnedBiome);
+                return chunk;
+            });
+        }
+    }
+
+    @Override
+    public @Nullable Pair<BlockPos, Holder<Structure>> findNearestMapStructure(ServerLevel level, HolderSet<Structure> structure, BlockPos pos, int p_223041_, boolean p_223042_) {
+        return parent.findNearestMapStructure(level, structure, pos, p_223041_, p_223042_);
+    }
+
+    @Override
+    public void applyBiomeDecoration(WorldGenLevel p_223087_, ChunkAccess p_223088_, StructureManager p_223089_) {
+    }
+
+    @Override
+    public void spawnOriginalMobs(WorldGenRegion region) {
+    }
+
+    @Override
+    public int getSpawnHeight(LevelHeightAccessor heightAccessor) {
+        return parent.getSpawnHeight(heightAccessor);
+    }
+
+    @Override
+    public BiomeSource getBiomeSource() {
+        return parent.getBiomeSource();
+    }
+
+    @Override
+    public int getGenDepth() {
+        return parent.getGenDepth();
+    }
+
+    @Override
+    public WeightedList<MobSpawnSettings.SpawnerData> getMobsAt(Level level, StructureManager structureManager, MobCategory mobCategory, BlockPos pos) {
+        return parent.getMobsAt(level, structureManager, mobCategory, pos);
+    }
+
+    @Override
+    public void createStructures(RegistryAccess registry, ChunkGeneratorStructureState state, StructureManager structureManager, ChunkAccess chunk, StructureTemplateManager structureTemplateManager, ResourceKey<Level> level) {
+        parent.createStructures(registry, state, structureManager, chunk, structureTemplateManager, level);
+    }
+
+    @Override
+    public void createReferences(WorldGenLevel level, StructureManager structureManager, ChunkAccess chunk) {
+        parent.createReferences(level, structureManager, chunk);
+    }
+
+    @Override
+    public int getSeaLevel() {
+        return parent.getSeaLevel();
+    }
+
+    @Override
+    public int getMinY() {
+        return parent.getMinY();
+    }
+
+    @Override
+    public int getBaseHeight(int x, int z, Heightmap.Types type, LevelHeightAccessor heightAccessor, RandomState randomState) {
+        return parent.getBaseHeight(x, z, type, heightAccessor, randomState);
+    }
+
+    @Override
+    public NoiseColumn getBaseColumn(int x, int z, LevelHeightAccessor heightAccessor, RandomState randomState) {
+        return parent.getBaseColumn(x, z, heightAccessor, randomState);
+    }
+
+    @Override
+    public int getFirstFreeHeight(int x, int z, Heightmap.Types type, LevelHeightAccessor heightAccessor, RandomState randomState) {
+        return parent.getBaseHeight(x, z, type, heightAccessor, randomState);
+    }
+
+    @Override
+    public int getFirstOccupiedHeight(int x, int z, Heightmap.Types type, LevelHeightAccessor heightAccessor, RandomState randomState) {
+        return parent.getBaseHeight(x, z, type, heightAccessor, randomState) - 1;
+    }
+
+    @Override
+    public void addDebugScreenInfo(List<String> outDebugInfo, RandomState randomState, BlockPos pos, SamplerContext samplerContext) {
+        parent.addDebugScreenInfo(outDebugInfo, randomState, pos, samplerContext);
+    }
+
+    /**
+     * @deprecated
+     */
+    @Deprecated
+    @Override
+    public BiomeGenerationSettings getBiomeGenerationSettings(Holder<Biome> biome) {
+        return parent.getBiomeGenerationSettings(biome);
+    }
+
+}

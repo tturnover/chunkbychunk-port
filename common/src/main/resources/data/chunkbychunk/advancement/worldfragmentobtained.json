@@ -1,0 +1,31 @@
+{
+  "parent": "chunkbychunk:worldforgeobtained",
+  "display": {
+    "icon": {
+      "id": "chunkbychunk:worldfragment"
+    },
+    "title": {
+      "translate": "advancement.chunkbychunk.worldfragmentobtained.title"
+    },
+    "description": {
+      "translate": "advancement.chunkbychunk.worldfragmentobtained.description"
+    }
+  },
+  "criteria": {
+    "obtainworldfragment": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": "chunkbychunk:worldfragment"
+          }
+        ]
+      }
+    }
+  },
+  "rewards": {
+    "recipes": [
+      "chunkbychunk:worldshard"
+    ]
+  }
+}

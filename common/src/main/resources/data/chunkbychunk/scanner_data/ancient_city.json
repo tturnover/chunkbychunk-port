@@ -1,0 +1,10 @@
+{
+  "inputItems": [
+    "echo_shard"
+  ],
+  "targetBlocks": [
+    "sculk_shrieker",
+    "sculk_catalyst",
+    "reinforced_deepslate"
+  ]
+}

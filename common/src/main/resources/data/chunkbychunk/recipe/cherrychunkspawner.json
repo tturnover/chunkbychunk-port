@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "aCb",
+    "CXC",
+    "bCa"
+  ],
+  "key": {
+    "a": "minecraft:pink_dye",
+    "b": "#minecraft:saplings",
+    "C": "minecraft:copper_ingot",
+    "X": "chunkbychunk:worldcore"
+  },
+  "result": {
+    "id": "chunkbychunk:cherrychunkspawner"
+  }
+}

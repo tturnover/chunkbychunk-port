@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "sCs",
+    "CXC",
+    "sCs"
+  ],
+  "key": {
+    "s": "#minecraft:saplings",
+    "C": "minecraft:copper_ingot",
+    "X": "chunkbychunk:worldcore"
+  },
+  "result": {
+    "id": "chunkbychunk:junglechunkspawner"
+  }
+}

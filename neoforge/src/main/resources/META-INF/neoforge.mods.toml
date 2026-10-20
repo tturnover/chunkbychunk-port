@@ -1,0 +1,38 @@
+# Find more information on toml format here:  https://github.com/toml-lang/toml
+# ModLoader settings
+modLoader="javafml"
+loaderVersion="${neoforge_loader_version_range}"
+license="${license}"
+#issueTrackerURL="https://change.me.to.your.issue.tracker.example.invalid/"
+# A list of mods - how many allowed here is determined by the individual mod loader
+[[mods]]
+modId="${mod_id}"
+version="${version}"
+displayName="${mod_name}"
+displayURL="https://immortius.xyz/chunkbychunk"
+bannerFile="logo.png"
+credits="${credits}"
+authors="${mod_author}"
+description='''${description}'''
+[[mixins]]
+config = "${mod_id}.mixins.json"
+[[accessTransformers]]
+file = "META-INF/accesstransformer.cfg"
+[[dependencies.${mod_id}]]
+    modId="neoforge"
+    type="required"
+    versionRange="[${neoforge_version},)"
+    ordering="NONE"
+    side="BOTH"
+[[dependencies.${mod_id}]]
+    modId="minecraft"
+    type="required"
+    versionRange="${minecraft_version_range}"
+    ordering="NONE"
+    side="BOTH"
+[[dependencies.${mod_id}]]
+    modId="jei"
+    type="optional"
+    versionRange="[${jei_version},)"
+    ordering="NONE"
+    side="BOTH"

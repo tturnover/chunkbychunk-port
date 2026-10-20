@@ -1,0 +1,28 @@
+{
+  "replace": false,
+  "values": [
+    "chunkbychunk:worldcore",
+    "chunkbychunk:worldforge",
+    "chunkbychunk:worldscanner",
+    "chunkbychunk:worldmender",
+    "chunkbychunk:chunkspawner",
+    "chunkbychunk:unstablechunkspawner",
+    "chunkbychunk:plainschunkspawner",
+    "chunkbychunk:snowchunkspawner",
+    "chunkbychunk:desertchunkspawner",
+    "chunkbychunk:swampchunkspawner",
+    "chunkbychunk:badlandschunkspawner",
+    "chunkbychunk:forestchunkspawner",
+    "chunkbychunk:savannachunkspawner",
+    "chunkbychunk:rockychunkspawner",
+    "chunkbychunk:junglechunkspawner",
+    "chunkbychunk:mushroomchunkspawner",
+    "chunkbychunk:mountainchunkspawner",
+    "chunkbychunk:cherrychunkspawner",
+    "chunkbychunk:mangrovechunkspawner",
+    "chunkbychunk:palechunkspawner",
+    "chunkbychunk:deepdarkchunkspawner",
+    "chunkbychunk:oceanchunkspawner",
+    "chunkbychunk:sulfurchunkspawner"
+  ]
+}

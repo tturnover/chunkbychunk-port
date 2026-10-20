@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "aCb",
+    "CXC",
+    "bCa"
+  ],
+  "key": {
+    "a": "minecraft:gunpowder",
+    "b": "minecraft:yellow_dye",
+    "C": "minecraft:copper_ingot",
+    "X": "chunkbychunk:worldcore"
+  },
+  "result": {
+    "id": "chunkbychunk:sulfurchunkspawner"
+  }
+}

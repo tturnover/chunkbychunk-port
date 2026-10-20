@@ -1,0 +1,9 @@
+{
+  "inputItems": [
+    "netherite_scrap",
+    "ancient_debris"
+  ],
+  "targetBlocks": [
+    "ancient_debris"
+  ]
+}

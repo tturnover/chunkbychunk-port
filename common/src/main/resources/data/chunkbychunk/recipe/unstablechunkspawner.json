@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "rCr",
+    "CXC",
+    "rCr"
+  ],
+  "key": {
+    "r": "minecraft:redstone",
+    "C": "minecraft:copper_ingot",
+    "X": "chunkbychunk:worldcore"
+  },
+  "result": {
+    "id": "chunkbychunk:unstablechunkspawner"
+  }
+}

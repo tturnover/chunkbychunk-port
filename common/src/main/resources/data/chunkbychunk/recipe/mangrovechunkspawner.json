@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "aCb",
+    "CXC",
+    "bCa"
+  ],
+  "key": {
+    "a": "minecraft:mud",
+    "b": "minecraft:water_bucket",
+    "C": "minecraft:copper_ingot",
+    "X": "chunkbychunk:worldcore"
+  },
+  "result": {
+    "id": "chunkbychunk:mangrovechunkspawner"
+  }
+}

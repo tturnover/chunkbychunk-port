@@ -1,0 +1,14 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "s",
+    "c"
+  ],
+  "key": {
+    "s": "minecraft:compass",
+    "c": "chunkbychunk:worldcore"
+  },
+  "result": {
+    "id": "chunkbychunk:worldscanner"
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "parent": "chunkbychunk:worldshardobtained",
+  "display": {
+    "icon": {
+      "id": "chunkbychunk:worldcrystal"
+    },
+    "title": {
+      "translate": "advancement.chunkbychunk.worldcrystalobtained.title"
+    },
+    "description": {
+      "translate": "advancement.chunkbychunk.worldcrystalobtained.description"
+    }
+  },
+  "criteria": {
+    "obtainworldcrystal": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": "chunkbychunk:worldcrystal"
+          }
+        ]
+      }
+    }
+  },
+  "rewards": {
+    "recipes": [
+      "chunkbychunk:worldcore",
+      "chunkbychunk:disassemble_worldcrystal",
+      "chunkbychunk:worldcrystal"
+    ]
+  }
+}

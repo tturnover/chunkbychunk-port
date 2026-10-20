@@ -1,0 +1,10 @@
+{
+  "inputItems": [
+    "amethyst_shard"
+  ],
+  "targetBlocks": [
+    "budding_amethyst",
+    "amethyst_block",
+    "amethyst_cluster"
+  ]
+}
